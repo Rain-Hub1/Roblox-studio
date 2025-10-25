@@ -1,104 +1,105 @@
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
+-- Não foi testado eu só criei e pronto
+local RunS = game:GetService("RunService")
+local Plrs = game:GetService("Players")
 
-local PILLARS_FOLDER_NAME = "Pillars"
-local TRIGGER_DISTANCE = 30
-local ANIMATION_SMOOTHNESS = 0.08
-local CASCADE_DELAY = 0.1
+local P_FOLDER = "Pillars"
+local TRG_DIST = 30
+local ANIM_SMT = 0.08
+local CASC_DLY = 0.1
 
-local MOVEMENT_PATTERN = {
+local MOV_PATT = {
 	["Pillar1"] = -3, ["Pillar2"] = 3, ["Pillar3"] = 3,
 	["Pillar4"] = -3, ["Pillar5"] = -3, ["Pillar6"] = 3
 }
 
-local allGatePillars = {}
-local pillarsFolder = nil
+local allPillars = {}
+local pFolder = nil
 
-local function setupExistingPillars()
-	if not pillarsFolder then return end
+local function setupPillars()
+	if not pFolder then return end
 	
-	local children = pillarsFolder:GetChildren()
+	local children = pFolder:GetChildren()
 	if #children == 0 then return end
 	
 	table.sort(children, function(a, b) return a.Name < b.Name end)
 
 	for i, pillar in ipairs(children) do
-		if pillar:IsA("BasePart") and MOVEMENT_PATTERN[pillar.Name] then
+		if pillar:IsA("BasePart") and MOV_PATT[pillar.Name] then
 			pillar.Anchored = true
 			
-			table.insert(allGatePillars, {
-				instance = pillar,
-				originalPosition = pillar.Position,
-				moveDirection = MOVEMENT_PATTERN[pillar.Name],
-				moveDistance = pillar.Size.Y,
-				activationTime = -1
+			table.insert(allPillars, {
+				inst = pillar,
+				ogPos = pillar.Position,
+				movDir = MOV_PATT[pillar.Name],
+				movDist = pillar.Size.Y,
+				actTime = -1
 			})
 		end
 	end
 end
 
 local function updateGate()
-	if #allGatePillars == 0 then return end
+	if #allPillars == 0 then return end
 
-	local closestPlayer = nil
-	local minDistance = TRIGGER_DISTANCE + 20
+	local closestPlr = nil
+	local minDist = TRG_DIST + 20
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			local rootPart = player.Character.HumanoidRootPart
-			local dist = (rootPart.Position - allGatePillars[1].instance.Position).Magnitude
-			if dist < minDistance then
-				minDistance = dist
-				closestPlayer = rootPart
+	for _, plr in ipairs(Plrs:GetPlayers()) do
+		if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local root = plr.Character.HumanoidRootPart
+			local dist = (root.Position - allPillars[1].inst.Position).Magnitude
+			if dist < minDist then
+				minDist = dist
+				closestPlr = root
 			end
 		end
 	end
 
-	if closestPlayer then
-		for i, pillarData in ipairs(allGatePillars) do
-			if pillarData.activationTime == -1 then
+	if closestPlr then
+		for i, pData in ipairs(allPillars) do
+			if pData.actTime == -1 then
 				if i == 1 then
-					pillarData.activationTime = tick()
+					pData.actTime = tick()
 				else
-					local prevPillarData = allGatePillars[i-1]
-					if prevPillarData.activationTime > 0 and (tick() - prevPillarData.activationTime) > CASCADE_DELAY then
-						pillarData.activationTime = tick()
+					local prevPData = allPillars[i-1]
+					if prevPData.actTime > 0 and (tick() - prevPData.actTime) > CASC_DLY then
+						pData.actTime = tick()
 					end
 				end
 			end
 		end
 	else
-		for _, pillarData in ipairs(allGatePillars) do
-			pillarData.activationTime = -1
+		for _, pData in ipairs(allPillars) do
+			pData.actTime = -1
 		end
 	end
 
-	for _, pillarData in ipairs(allGatePillars) do
-		local pillar = pillarData.instance
-		local originalPos = pillarData.originalPosition
+	for _, pData in ipairs(allPillars) do
+		local pillar = pData.inst
+		local ogPos = pData.ogPos
 		
 		local openAlpha = 0
-		if pillarData.activationTime > 0 and closestPlayer then
-			local distanceToPillar = (closestPlayer.Position - pillar.Position).Magnitude
+		if pData.actTime > 0 and closestPlr then
+			local distToPillar = (closestPlr.Position - pillar.Position).Magnitude
 			
-			if distanceToPillar < TRIGGER_DISTANCE then
-				openAlpha = 1 - (distanceToPillar / TRIGGER_DISTANCE)
+			if distToPillar < TRG_DIST then
+				openAlpha = 1 - (distToPillar / TRG_DIST)
 				openAlpha = math.clamp(openAlpha, 0, 1)
 			end
 		end
 
-		local moveOffset = openAlpha * pillarData.moveDistance * pillarData.moveDirection
-		local targetPosition = originalPos + Vector3.new(0, moveOffset, 0)
+		local movOffset = openAlpha * pData.movDist * pData.movDir
+		local targetPos = ogPos + Vector3.new(0, movOffset, 0)
 
-		pillar.Position = pillar.Position:Lerp(targetPosition, ANIMATION_SMOOTHNESS)
+		pillar.Position = pillar.Position:Lerp(targetPos, ANIM_SMT)
 	end
 end
 
-pillarsFolder = workspace:WaitForChild(PILLARS_FOLDER_NAME, 30)
+pFolder = workspace:WaitForChild(P_FOLDER, 30)
 
-if pillarsFolder then
-	setupExistingPillars()
-	RunService.Heartbeat:Connect(updateGate)
+if pFolder then
+	setupPillars()
+	RunS.Heartbeat:Connect(updateGate)
 else
-	error("A pasta '" .. PILLARS_FOLDER_NAME .. "' não foi encontrada no Workspace.")
+	error("A pasta '" .. P_FOLDER .. "' não foi encontrada no Workspace.")
 end
